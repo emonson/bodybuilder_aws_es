@@ -1,10 +1,11 @@
 <html>
     <head>
+        <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
         <style>
-            .label { margin-right: 0.2em; }
-            .label-subjects { background-color: #EBAD60; }
-            .label-tags { background-color: #D17869; }
-            .label-applied { background-color: #8BAB8D; cursor: pointer; }
+            .label { color: #333; }
+            .label-subjects { background-color: #F2E4D3; }
+            .label-tags { background-color: #F0DDDA; }
+            .label-applied { background-color: #E1EDE2; cursor: pointer; margin-right: 0.4em; }
             .highlights em { font-weight: bold; }
             .facet_list { cursor: pointer; }
             .facet_list ul { list-style-type: none; padding-left: 1em; }
@@ -57,7 +58,6 @@
         <script type="text/javascript" src="bodybuilder.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="elasticsearch.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="handlebars.min.js" charset="utf-8"></script>
-        <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
         
         <!-- RESULTS BODY TEMPLATE -->
         <script id="body_template" type="text/x-handlebars-template">
@@ -65,7 +65,7 @@
             {{#each hits}}
                 <div class="result_entry">
                     <h4 class="result_title">{{_source.ref_summary}}</h4>
-                    <p><a href="http://{{_source.url}}">{{_source.url}}</a></p>
+                    <p><a href="http://{{_source.url}}" target="_blank">{{_source.url}}</a></p>
                     <p>
                     {{#each highlight.content}}
                         <span class="highlights">{{{this}}}</span> &mdash; 
