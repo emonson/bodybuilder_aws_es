@@ -1,9 +1,17 @@
 <html>
+    <head>
+        <style>
+            .label { margin-right: 0.2em; }
+            .label-subjects { background-color: #BAB293; }
+            .label-tags { background-color: #BAA09A; }
+        </style>
+    </head>
     <body>
         <div class="container">
 
             <div class="page-header">
                 <p class="lead">Trying out faceted search in AWS Elasticsearch with Fashion IP data.</p>
+                <!-- Search box form -->
                 <div class="row">
                     <div class="col-lg-6">
                         <form id="search_box_form">
@@ -16,13 +24,14 @@
                         </form>
                     </div>
                 </div>
+                <!-- Applied facets list -->
                 <div class="row">
                     <div class="col-lg-6" id="facets_applied"></div>
                 </div>
             </div>  
 
             <div class="row">
-                <!-- FACETS -->
+                <!-- Facets -->
                 <div class="col-md-4" id="results_facets">
                     <h4>Subjects</h4>
                     <div id="facet_subject_tags"></div>
@@ -31,33 +40,44 @@
                     <h4>Tags</h4>
                     <div id="facet_tags"></div>
                 </div>
-                <!-- RESULTS -->
+                <!-- Results -->
                 <div class="col-md-8">
                     <div id="results_body"></div>
                 </div>
 
             </div>
-
-        <!-- SCRIPTS -->
+        </div>  <!-- container -->
+        
+        <!-- REQUIREMENTS -->
         <script type="text/javascript" src="//code.jquery.com/jquery-1.12.3.js"></script>
         <script type="text/javascript" src="bodybuilder.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="elasticsearch.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="handlebars.min.js" charset="utf-8"></script>
         <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-        <link rel="stylesheet" type="text/css" href="es.css">
         
         <!-- RESULTS BODY TEMPLATE -->
         <script id="body_template" type="text/x-handlebars-template">
             <div id="outer_result_loop">
             {{#each hits}}
                 <div class="result_entry">
-                    <h4>{{_source.name}}</h4>
-                    <p>{{_source.date_min}}<p>
+                    <h4 class="result_title">{{_source.ref_summary}}</h4>
                     <p><strong>{{_source.court}}</strong></p>
                     <p><a href="http://{{_source.url}}">{{_source.url}}</a></p>
+                    <p>
                     {{#each highlight.content}}
                         <span>{{{this}}}</span> &mdash; 
                     {{/each}}
+                    </p>
+                    <p>Subjects: 
+                    {{#each _source.subject_tags}}
+                        <span class="label label-subjects">{{{this}}}</span>
+                    {{/each}}
+                    </p>
+                    <p>Tags: 
+                    {{#each _source.tags}}
+                        <span class="label label-tags">{{{this}}}</span>
+                    {{/each}}
+                    </p>
                     <hr />
                 </div>
             {{/each}}
@@ -73,7 +93,7 @@
             </ul>
         </script>
         
-        <!-- APPLIED FACETS TEMPLATE -->
+        <!-- APPLIED FACETS LIST TEMPLATE -->
         <script id="applied_facets_template" type="text/x-handlebars-template">
             {{#each applied}}
                 <span class="label label-default" id="{{{this}}}" onclick="facet_remove(this.id)">
@@ -85,17 +105,20 @@
 
         <!-- BEHAVIOR -->
         <script>
+            // Establish connection with Elasticsearch server
             var client = new elasticsearch.Client({
                 host: 'search-dvstest-ssbfvmt2tjfvm7jj6qh2jtmuvi.us-west-2.es.amazonaws.com',
                 apiVersion: '5.0',
                 log: 'trace'
             });
             
+            // Search input callback setup
             $( "#search_box_form" ).submit(function( event ) {
                 fulltext_search();
                 event.preventDefault();
             });
-
+            
+            // Compile templates
             var source = $("#body_template").html();
             var template_body = Handlebars.compile(source);
             source = $("#facet_template").html();
@@ -103,16 +126,19 @@
             source = $("#applied_facets_template").html();
             var template_applied_facets = Handlebars.compile(source);
             
+            // Initialize query variables
             var exclude_fields = ['content', 'subjects', 'filename', 'referenced', 
-                                    'media_type', 'ref_summary', 'file_ref'];
-                                                        
+                                    'media_type', 'file_ref'];
             var query_string = '*';
             var query_facets_list = [];
             
+            // Main search function
             var fulltext_search = function() {
             
+                // Just grab query string fresh from input each time
                 query_string = $("#search_box").val();
                 
+                // Base default query
                 var es_body = bodybuilder()
                     .rawOption('_source', { 'excludes': exclude_fields })
                     .size(10)
@@ -122,6 +148,7 @@
                     .aggregation('terms', 'tags')
                     .rawOption( "highlight", { "fields": { "content": {} } } );
                 
+                // Add facet filters from list to query
                 $.each(query_facets_list, function(idx, sobj) {
                     var fs = sobj.split('|');
                     es_body.filter('term', fs[0], fs[1]);
@@ -165,7 +192,7 @@
             var facet_click = function(facet_id){
                 query_facets_list.push(facet_id);
                 fulltext_search();
-            }; // facet_click
+            }; 
             
             var facet_remove = function(facet_id){
                 var idx = query_facets_list.indexOf(facet_id);
@@ -173,13 +200,7 @@
                     query_facets_list.splice(idx, 1);
                 }
                 fulltext_search();
-            }; // facet_click
-            
-            // Close icon
-            // https://v4-alpha.getbootstrap.com/utilities/close-icon/
-            // Labels
-            // http://getbootstrap.com/components/#labels
-            
+            }; 
             
         </script>
     </body>
