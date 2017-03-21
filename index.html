@@ -7,6 +7,7 @@
             .label-applied { background-color: #8BAB8D; cursor: pointer; }
             .highlights em { font-weight: bold; }
             .facet_list { cursor: pointer; }
+            .facet_list ul { list-style-type: none; padding-left: 1em; }
         </style>
     </head>
     <body>
@@ -35,16 +36,16 @@
 
             <div class="row">
                 <!-- Facets -->
-                <div class="col-md-4" id="results_facets">
-                    <h4>Subjects</h4>
+                <div class="col-md-3" id="results_facets">
+                    <h4>Subject</h4>
                     <div class="facet_list" id="facet_subject_tags"></div>
-                    <h4>Courts</h4>
+                    <h4>Court</h4>
                     <div class="facet_list" id="facet_courts"></div>
-                    <h4>Tags</h4>
+                    <h4>Category</h4>
                     <div class="facet_list" id="facet_tags"></div>
                 </div>
                 <!-- Results -->
-                <div class="col-md-8">
+                <div class="col-md-9">
                     <div id="results_body"></div>
                 </div>
 
@@ -64,7 +65,6 @@
             {{#each hits}}
                 <div class="result_entry">
                     <h4 class="result_title">{{_source.ref_summary}}</h4>
-                    <p><strong>{{_source.court}}</strong></p>
                     <p><a href="http://{{_source.url}}">{{_source.url}}</a></p>
                     <p>
                     {{#each highlight.content}}
