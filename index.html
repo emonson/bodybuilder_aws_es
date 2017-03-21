@@ -16,6 +16,9 @@
                         </form>
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-lg-6" id="facets_applied"></div>
+                </div>
             </div>  
 
             <div class="row">
@@ -41,6 +44,7 @@
         <script type="text/javascript" src="elasticsearch.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="handlebars.min.js" charset="utf-8"></script>
         <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="es.css">
         
         <!-- RESULTS BODY TEMPLATE -->
         <script id="body_template" type="text/x-handlebars-template">
@@ -64,10 +68,20 @@
         <script id="facet_template" type="text/x-handlebars-template">
             <ul class="facet_list">
             {{#each buckets}}
-                <li class="facet_entry">{{key}} ({{doc_count}})</li>
+                <li class="facet_entry" id="{{../facet_name}}|{{key}}" onclick="facet_click(this.id)">{{key}} ({{doc_count}})</li>
             {{/each}}
             </ul>
         </script>
+        
+        <!-- APPLIED FACETS TEMPLATE -->
+        <script id="applied_facets_template" type="text/x-handlebars-template">
+            {{#each applied}}
+                <span class="label label-default" id="{{{this}}}" onclick="facet_remove(this.id)">
+                    {{{this}}}
+                    <span class="glyphicon glyphicon-remove"></span>
+                </span>
+            {{/each}}
+        </script>            
 
         <!-- BEHAVIOR -->
         <script>
@@ -86,6 +100,8 @@
             var template_body = Handlebars.compile(source);
             source = $("#facet_template").html();
             var template_facet = Handlebars.compile(source);
+            source = $("#applied_facets_template").html();
+            var template_applied_facets = Handlebars.compile(source);
             
             var exclude_fields = ['content', 'subjects', 'filename', 'referenced', 
                                     'media_type', 'ref_summary', 'file_ref'];
@@ -104,13 +120,17 @@
                     .aggregation('terms', 'court_level_name')
                     .aggregation('terms', 'subject_tags')
                     .aggregation('terms', 'tags')
-                    .rawOption( "highlight", { "fields": { "content": {} } } )
-                    .build()
-                        
+                    .rawOption( "highlight", { "fields": { "content": {} } } );
+                
+                $.each(query_facets_list, function(idx, sobj) {
+                    var fs = sobj.split('|');
+                    es_body.filter('term', fs[0], fs[1]);
+                });
+
                 client.search({
                     index: 'fashion_test',
                     type: 'case',
-                    body: es_body
+                    body: es_body.build()
                 }).then(function (body) {
                     var hits = body.hits;
                     var aggs = body.aggregations;
@@ -119,20 +139,41 @@
                 var html_results_body = template_body(hits);
                 $("#results_body").html(html_results_body);
         
+                aggs.agg_terms_subject_tags.facet_name = "subject_tags";
                 var html_facet_subject_tags = template_facet(aggs.agg_terms_subject_tags);
                 $("#facet_subject_tags").html(html_facet_subject_tags);
         
+                aggs.agg_terms_court_level_name.facet_name = "court_level_name";
                 var html_facet_courts = template_facet(aggs.agg_terms_court_level_name);
                 $("#facet_courts").html(html_facet_courts);
         
+                aggs.agg_terms_tags.facet_name = "tags";
                 var html_facet_tags = template_facet(aggs.agg_terms_tags);
                 $("#facet_tags").html(html_facet_tags);
+                
+                var html_applied_facets = template_applied_facets({'applied':query_facets_list});
+                console.log(html_applied_facets);
+                $("#facets_applied").html(html_applied_facets);
                 
                 }, function (error) {
                     console.trace(error.message);
                 });
             
             }; // fulltext_search
+            
+            // http://stackoverflow.com/a/4825325
+            var facet_click = function(facet_id){
+                query_facets_list.push(facet_id);
+                fulltext_search();
+            }; // facet_click
+            
+            var facet_remove = function(facet_id){
+                var idx = query_facets_list.indexOf(facet_id);
+                if (idx > -1) {
+                    query_facets_list.splice(idx, 1);
+                }
+                fulltext_search();
+            }; // facet_click
             
             // Close icon
             // https://v4-alpha.getbootstrap.com/utilities/close-icon/
