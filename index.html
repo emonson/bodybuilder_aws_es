@@ -48,6 +48,11 @@
                 <!-- Results -->
                 <div class="col-md-9">
                     <div id="results_body"></div>
+                    <div class="container">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination" id="pagination"></ul>
+                        </nav>
+                    </div>
                 </div>
 
             </div>
@@ -58,6 +63,7 @@
         <script type="text/javascript" src="bodybuilder.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="elasticsearch.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="handlebars.min.js" charset="utf-8"></script>
+        <script src="jquery.twbsPagination.min.js" type="text/javascript"></script>
         
         <!-- RESULTS BODY TEMPLATE -->
         <script id="body_template" type="text/x-handlebars-template">
@@ -134,6 +140,33 @@
                                     'media_type', 'file_ref'];
             var query_string = '*';
             var query_facets_list = [];
+            var docs_per_page = 10;
+            var num_docs = 0;
+            var hits, aggs;
+            var es_body;
+            
+            var populate_results_body = function() {
+                var html_results_body = template_body(hits);
+                $("#results_body").html(html_results_body);       
+            };
+            
+            var populate_facet_lists = function() {
+                aggs.agg_terms_subject_tags.facet_name = "subject_tags";
+                var html_facet_subject_tags = template_facet(aggs.agg_terms_subject_tags);
+                $("#facet_subject_tags").html(html_facet_subject_tags);
+        
+                aggs.agg_terms_court_level_name.facet_name = "court_level_name";
+                var html_facet_courts = template_facet(aggs.agg_terms_court_level_name);
+                $("#facet_courts").html(html_facet_courts);
+        
+                aggs.agg_terms_tags.facet_name = "tags";
+                var html_facet_tags = template_facet(aggs.agg_terms_tags);
+                $("#facet_tags").html(html_facet_tags);              
+
+                var html_applied_facets = template_applied_facets({'applied':query_facets_list});
+                console.log(html_applied_facets);
+                $("#facets_applied").html(html_applied_facets);
+            };
             
             // Main search function
             var fulltext_search = function() {
@@ -142,9 +175,11 @@
                 query_string = $("#search_box").val();
                 
                 // Base default query
-                var es_body = bodybuilder()
+                es_body = {};
+                es_body = bodybuilder()
                     .rawOption('_source', { 'excludes': exclude_fields })
-                    .size(10)
+                    .size(docs_per_page)
+                    .from(0)
                     .query('query_string', {'default_field':'content', 'query':query_string})
                     .aggregation('terms', 'court_level_name')
                     .aggregation('terms', 'subject_tags')
@@ -162,28 +197,15 @@
                     type: 'case',
                     body: es_body.build()
                 }).then(function (body) {
-                    var hits = body.hits;
-                    var aggs = body.aggregations;
+                    hits = body.hits;
+                    aggs = body.aggregations;
+                    num_docs = hits.total;
                 
-                // Do something with search results!
-                var html_results_body = template_body(hits);
-                $("#results_body").html(html_results_body);
-        
-                aggs.agg_terms_subject_tags.facet_name = "subject_tags";
-                var html_facet_subject_tags = template_facet(aggs.agg_terms_subject_tags);
-                $("#facet_subject_tags").html(html_facet_subject_tags);
-        
-                aggs.agg_terms_court_level_name.facet_name = "court_level_name";
-                var html_facet_courts = template_facet(aggs.agg_terms_court_level_name);
-                $("#facet_courts").html(html_facet_courts);
-        
-                aggs.agg_terms_tags.facet_name = "tags";
-                var html_facet_tags = template_facet(aggs.agg_terms_tags);
-                $("#facet_tags").html(html_facet_tags);
-                
-                var html_applied_facets = template_applied_facets({'applied':query_facets_list});
-                console.log(html_applied_facets);
-                $("#facets_applied").html(html_applied_facets);
+                    // Do something with search results!
+                    populate_results_body();
+                    populate_facet_lists();
+                    $("#pagination").html('');
+                    initialize_paging();
                 
                 }, function (error) {
                     console.trace(error.message);
@@ -205,6 +227,35 @@
                 fulltext_search();
             }; 
             
+            var initialize_paging = function() {
+                $(function () {
+                    if (window.hasOwnProperty('pagObj')) {
+                        delete window.pagObj;
+                    }
+                    window.pagObj = $('#pagination').twbsPagination({
+                        totalPages: Math.ceil(num_docs/docs_per_page),
+                        visiblePages: docs_per_page
+                    }).on('page', function (event, page) {
+                        console.info(page + ' (from event listening)');
+
+                        es_body.from((page-1)*docs_per_page);
+                        client.search({
+                            index: 'fashion_test',
+                            type: 'case',
+                            body: es_body.build()
+                        }).then(function (body) {
+
+                            hits = body.hits;
+                            aggs = body.aggregations;
+                            num_pages = hits.total;
+                            populate_results_body();
+
+                        }, function (error) {
+                            console.trace(error.message);
+                        });
+                    });
+                });
+            };
         </script>
     </body>
 </html>
