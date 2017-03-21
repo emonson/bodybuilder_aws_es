@@ -91,7 +91,7 @@
         <script id="facet_template" type="text/x-handlebars-template">
             <ul class="facet_list">
             {{#each buckets}}
-                <li class="facet_entry" id="{{../facet_name}}|{{key}}" onclick="facet_click(this.id)">{{key}} ({{doc_count}})</li>
+                <li class="facet_entry" id="{{../facet_name}} · {{key}}" onclick="facet_click(this.id)">{{key}} ({{doc_count}})</li>
             {{/each}}
             </ul>
         </script>
@@ -153,7 +153,7 @@
                 
                 // Add facet filters from list to query
                 $.each(query_facets_list, function(idx, sobj) {
-                    var fs = sobj.split('|');
+                    var fs = sobj.split(' · ');
                     es_body.filter('term', fs[0], fs[1]);
                 });
 
