@@ -144,7 +144,7 @@
                 // Base default query
                 var es_body = bodybuilder()
                     .rawOption('_source', { 'excludes': exclude_fields })
-                    .size(10)
+                    .size(20)
                     .query('query_string', {'default_field':'content', 'query':query_string})
                     .aggregation('terms', 'court_level_name')
                     .aggregation('terms', 'subject_tags')
