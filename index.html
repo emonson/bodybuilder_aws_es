@@ -2,8 +2,11 @@
     <head>
         <style>
             .label { margin-right: 0.2em; }
-            .label-subjects { background-color: #BAB293; }
-            .label-tags { background-color: #BAA09A; }
+            .label-subjects { background-color: #EBAD60; }
+            .label-tags { background-color: #D17869; }
+            .label-applied { background-color: #8BAB8D; cursor: pointer; }
+            .highlights em { font-weight: bold; }
+            .facet_list { cursor: pointer; }
         </style>
     </head>
     <body>
@@ -34,11 +37,11 @@
                 <!-- Facets -->
                 <div class="col-md-4" id="results_facets">
                     <h4>Subjects</h4>
-                    <div id="facet_subject_tags"></div>
+                    <div class="facet_list" id="facet_subject_tags"></div>
                     <h4>Courts</h4>
-                    <div id="facet_courts"></div>
+                    <div class="facet_list" id="facet_courts"></div>
                     <h4>Tags</h4>
-                    <div id="facet_tags"></div>
+                    <div class="facet_list" id="facet_tags"></div>
                 </div>
                 <!-- Results -->
                 <div class="col-md-8">
@@ -65,7 +68,7 @@
                     <p><a href="http://{{_source.url}}">{{_source.url}}</a></p>
                     <p>
                     {{#each highlight.content}}
-                        <span>{{{this}}}</span> &mdash; 
+                        <span class="highlights">{{{this}}}</span> &mdash; 
                     {{/each}}
                     </p>
                     <p>Subjects: 
@@ -96,7 +99,7 @@
         <!-- APPLIED FACETS LIST TEMPLATE -->
         <script id="applied_facets_template" type="text/x-handlebars-template">
             {{#each applied}}
-                <span class="label label-default" id="{{{this}}}" onclick="facet_remove(this.id)">
+                <span class="label label-applied" id="{{{this}}}" onclick="facet_remove(this.id)">
                     {{{this}}}
                     <span class="glyphicon glyphicon-remove"></span>
                 </span>
