@@ -1,0 +1,145 @@
+<html>
+    <body>
+        <div class="container">
+
+            <div class="page-header">
+                <p class="lead">Trying out faceted search in AWS Elasticsearch with Fashion IP data.</p>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <form id="search_box_form">
+                        <div class="input-group">
+                            <input type="search" id="search_box" class="form-control" placeholder="Search for...">
+                            <span class="input-group-btn">
+                                <button class="btn btn-default" type="submit">Search</button>
+                            </span>
+                        </div>
+                        </form>
+                    </div>
+                </div>
+            </div>  
+
+            <div class="row">
+                <!-- FACETS -->
+                <div class="col-md-4" id="results_facets">
+                    <h4>Subjects</h4>
+                    <div id="facet_subject_tags"></div>
+                    <h4>Courts</h4>
+                    <div id="facet_courts"></div>
+                    <h4>Tags</h4>
+                    <div id="facet_tags"></div>
+                </div>
+                <!-- RESULTS -->
+                <div class="col-md-8">
+                    <div id="results_body"></div>
+                </div>
+
+            </div>
+
+        <!-- SCRIPTS -->
+        <script type="text/javascript" src="//code.jquery.com/jquery-1.12.3.js"></script>
+        <script type="text/javascript" src="bodybuilder.min.js" charset="utf-8"></script>
+        <script type="text/javascript" src="elasticsearch.min.js" charset="utf-8"></script>
+        <script type="text/javascript" src="handlebars.min.js" charset="utf-8"></script>
+        <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        
+        <!-- RESULTS BODY TEMPLATE -->
+        <script id="body_template" type="text/x-handlebars-template">
+            <div id="outer_result_loop">
+            {{#each hits}}
+                <div class="result_entry">
+                    <h4>{{_source.name}}</h4>
+                    <p>{{_source.date_min}}<p>
+                    <p><strong>{{_source.court}}</strong></p>
+                    <p><a href="http://{{_source.url}}">{{_source.url}}</a></p>
+                    {{#each highlight.content}}
+                        <span>{{{this}}}</span> &mdash; 
+                    {{/each}}
+                    <hr />
+                </div>
+            {{/each}}
+            </div>
+        </script>
+
+        <!-- FACETS TEMPLATE -->
+        <script id="facet_template" type="text/x-handlebars-template">
+            <ul class="facet_list">
+            {{#each buckets}}
+                <li class="facet_entry">{{key}} ({{doc_count}})</li>
+            {{/each}}
+            </ul>
+        </script>
+
+        <!-- BEHAVIOR -->
+        <script>
+            var client = new elasticsearch.Client({
+                host: 'search-dvstest-ssbfvmt2tjfvm7jj6qh2jtmuvi.us-west-2.es.amazonaws.com',
+                apiVersion: '5.0',
+                log: 'trace'
+            });
+            
+            $( "#search_box_form" ).submit(function( event ) {
+                fulltext_search();
+                event.preventDefault();
+            });
+
+            var source = $("#body_template").html();
+            var template_body = Handlebars.compile(source);
+            source = $("#facet_template").html();
+            var template_facet = Handlebars.compile(source);
+            
+            var exclude_fields = ['content', 'subjects', 'filename', 'referenced', 
+                                    'media_type', 'ref_summary', 'file_ref'];
+                                                        
+            var query_string = '*';
+            var query_facets_list = [];
+            
+            var fulltext_search = function() {
+            
+                query_string = $("#search_box").val();
+                
+                var es_body = bodybuilder()
+                    .rawOption('_source', { 'excludes': exclude_fields })
+                    .size(10)
+                    .query('query_string', {'default_field':'content', 'query':query_string})
+                    .aggregation('terms', 'court_level_name')
+                    .aggregation('terms', 'subject_tags')
+                    .aggregation('terms', 'tags')
+                    .rawOption( "highlight", { "fields": { "content": {} } } )
+                    .build()
+                        
+                client.search({
+                    index: 'fashion_test',
+                    type: 'case',
+                    body: es_body
+                }).then(function (body) {
+                    var hits = body.hits;
+                    var aggs = body.aggregations;
+                
+                // Do something with search results!
+                var html_results_body = template_body(hits);
+                $("#results_body").html(html_results_body);
+        
+                var html_facet_subject_tags = template_facet(aggs.agg_terms_subject_tags);
+                $("#facet_subject_tags").html(html_facet_subject_tags);
+        
+                var html_facet_courts = template_facet(aggs.agg_terms_court_level_name);
+                $("#facet_courts").html(html_facet_courts);
+        
+                var html_facet_tags = template_facet(aggs.agg_terms_tags);
+                $("#facet_tags").html(html_facet_tags);
+                
+                }, function (error) {
+                    console.trace(error.message);
+                });
+            
+            }; // fulltext_search
+            
+            // Close icon
+            // https://v4-alpha.getbootstrap.com/utilities/close-icon/
+            // Labels
+            // http://getbootstrap.com/components/#labels
+            
+            
+        </script>
+    </body>
+</html>
