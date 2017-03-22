@@ -9,6 +9,7 @@
             .highlights em { font-weight: bold; }
             .facet_list { cursor: pointer; }
             .facet_list ul { list-style-type: none; padding-left: 1em; }
+            .returned_report { font-size: 11; color: #999; margin-top: -10; margin-left: 0.3em; }
         </style>
     </head>
     <body>
@@ -27,6 +28,7 @@
                             </span>
                         </div>
                         </form>
+                        <p class="returned_report">Items returned: <span id="num_returned_value">0</span></p>
                     </div>
                 </div>
                 <!-- Applied facets list -->
@@ -47,12 +49,23 @@
                 </div>
                 <!-- Results -->
                 <div class="col-md-9">
+                    <!-- Navigation -->
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination pagination-sm">
+                            <li class="pag_prev">
+                                <a href="#" aria-label="Previous">
+                                    <span aria-hidden="true">Previous</span>
+                                </a>
+                            </li>
+                            <!-- our dynamic pagination content goes here -->
+                            <li class="pag_next">
+                                <a href="#" aria-label="Next">
+                                    <span aria-hidden="true">Next</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
                     <div id="results_body"></div>
-                    <div class="container">
-                        <nav aria-label="Page navigation">
-                            <ul class="pagination" id="pagination"></ul>
-                        </nav>
-                    </div>
                 </div>
 
             </div>
@@ -63,7 +76,6 @@
         <script type="text/javascript" src="bodybuilder.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="elasticsearch.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="handlebars.min.js" charset="utf-8"></script>
-        <script src="jquery.twbsPagination.min.js" type="text/javascript"></script>
         
         <!-- RESULTS BODY TEMPLATE -->
         <script id="body_template" type="text/x-handlebars-template">
@@ -144,7 +156,9 @@
             var num_docs = 0;
             var hits, aggs;
             var es_body;
-            
+            var currentPage = 1;
+            var totalPages = 0;
+    
             var populate_results_body = function() {
                 var html_results_body = template_body(hits);
                 $("#results_body").html(html_results_body);       
@@ -200,11 +214,11 @@
                     hits = body.hits;
                     aggs = body.aggregations;
                     num_docs = hits.total;
+                    $("#num_returned_value").text(num_docs);
                 
                     // Do something with search results!
                     populate_results_body();
                     populate_facet_lists();
-                    $("#pagination").html('');
                     initialize_paging();
                 
                 }, function (error) {
@@ -228,32 +242,58 @@
             }; 
             
             var initialize_paging = function() {
-                $(function () {
-                    if (window.hasOwnProperty('pagObj')) {
-                        delete window.pagObj;
-                    }
-                    window.pagObj = $('#pagination').twbsPagination({
-                        totalPages: Math.ceil(num_docs/docs_per_page),
-                        visiblePages: docs_per_page
-                    }).on('page', function (event, page) {
-                        console.info(page + ' (from event listening)');
+                
+                // Generate pagination numbers based on number of docs
+                var nav = '';
+                $("li.numeros").remove()
+                currentPage = 1;
+                totalPages = Math.ceil(num_docs / docs_per_page);
+                for (var s=0; s<totalPages; s++) {
+                    nav += '<li class="numeros"><a href="#">'+(s+1)+'</a></li>';
+                }
+                $(".pag_prev").after(nav);
+                $(".numeros").first().addClass("active");
+                
+                // Pagination click callbacks
+                $(".pagination li.numeros").click(function() {
+                    $(".pagination li").removeClass("active");
+                    $(this).addClass("active");
+                    currentPage = parseInt($(this).text());
+                    console.log(currentPage);
+                    retrieve_page();
+                });
 
-                        es_body.from((page-1)*docs_per_page);
-                        client.search({
-                            index: 'fashion_test',
-                            type: 'case',
-                            body: es_body.build()
-                        }).then(function (body) {
+                $(".pagination li.pag_prev").click(function() {
+                    if($(this).next().is('.active')) return;
+                    $('.numeros.active').removeClass('active').prev().addClass('active');
+                    currentPage = currentPage > 1 ? (currentPage-1) : 1;
+                    retrieve_page();
+                });
 
-                            hits = body.hits;
-                            aggs = body.aggregations;
-                            num_pages = hits.total;
-                            populate_results_body();
+                $(".pagination li.pag_next").click(function() {
+                    if($(this).prev().is('.active')) return;
+                    $('.numeros.active').removeClass('active').next().addClass('active');
+                    currentPage = currentPage < totalPages ? (currentPage+1) : totalPages;
+                    retrieve_page();
+                });
+            };
+            
+            var retrieve_page = function() {
+                
+                var doc_index = (currentPage-1)*docs_per_page;
+                // NOTE: May not want to do aggregation in this call if it's slower
+                // since we're not replacing facet lists for this page retrieval
+                es_body.from(doc_index);
 
-                        }, function (error) {
-                            console.trace(error.message);
-                        });
-                    });
+                client.search({
+                    index: 'fashion_test',
+                    type: 'case',
+                    body: es_body.build()
+                }).then(function (body) {
+                    hits = body.hits;
+                    populate_results_body();
+                }, function (error) {
+                    console.trace(error.message);
                 });
             };
         </script>

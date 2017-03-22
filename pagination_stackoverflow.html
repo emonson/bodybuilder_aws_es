@@ -5,13 +5,13 @@ http://stackoverflow.com/questions/32698546/how-do-i-program-bootstrap-3-paginat
     <ul class="pagination">
         <li class="pag_prev">
             <a href="#" aria-label="Previous">
-                <span aria-hidden="true">&laquo;</span>
+                <span aria-hidden="true">Previous</span>
             </a>
         </li>
         <!-- our dynamic pagination content goes here -->
         <li class="pag_next">
             <a href="#" aria-label="Next">
-                <span aria-hidden="true">&raquo;</span>
+                <span aria-hidden="true">Next</span>
             </a>
         </li>
     </ul>
@@ -27,6 +27,7 @@ $( document ).ready(function() {
     
     /////////// PREPARE NAV ///////////////
     var nav = '';
+    $("li.numeros").remove()
     var totalPages = Math.ceil(pagesCount / pageSize);
     for (var s=0; s<totalPages; s++) {
         nav += '<li class="numeros"><a href="#">'+(s+1)+'</a></li>';
