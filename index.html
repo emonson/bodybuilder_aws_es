@@ -1,14 +1,7 @@
 <html>
-<!-- 
-    TODO: Pagination
-    https://v4-alpha.getbootstrap.com/components/pagination/
-    http://stackoverflow.com/questions/32698546/how-do-i-program-bootstrap-3-pagination-to-work-with-simple-html-content
-    TODO: search parameters in URL
-    
- -->
     <head>
         <title>AWS ES Fashion IP</title>
-        <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
         <style>
             .label { color: #333; }
             .label-subjects { background-color: #F2E4D3; }
@@ -74,7 +67,7 @@
         </div>  <!-- container -->
         
         <!-- REQUIREMENTS -->
-        <script type="text/javascript" src="//code.jquery.com/jquery-1.12.3.js"></script>
+        <script type="text/javascript" src="jquery-1.12.3.min.js"></script>
         <script type="text/javascript" src="bodybuilder.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="elasticsearch.min.js" charset="utf-8"></script>
         <script type="text/javascript" src="handlebars.min.js" charset="utf-8"></script>
@@ -132,7 +125,9 @@
             var client = new elasticsearch.Client({
                 host: 'search-dvstest-ssbfvmt2tjfvm7jj6qh2jtmuvi.us-west-2.es.amazonaws.com',
                 apiVersion: '5.0',
-                log: 'trace'
+                log: 'warning'
+                // To log all queries and returns in console, turn on 'trace' log
+                // log: 'trace'
             });
             
             // Compile templates
@@ -183,13 +178,11 @@
                 $("#facet_tags").html(html_facet_tags);              
 
                 var html_applied_facets = template_applied_facets({'applied':query_facets_list});
-                console.log(html_applied_facets);
                 $("#facets_applied").html(html_applied_facets);
             };
             
             // Main search function
             var fulltext_search = function() {
-            
                 // Just grab query string fresh from input each time
                 query_string = $("#search_box").val();
                 
@@ -197,12 +190,8 @@
                 es_body = {};
                 es_body = bodybuilder()
                     .rawOption('_source', { 'excludes': exclude_fields })
-<<<<<<< HEAD
-                    .size(20)
-=======
                     .size(docs_per_page)
                     .from(0)
->>>>>>> pagination
                     .query('query_string', {'default_field':'content', 'query':query_string})
                     .aggregation('terms', 'court_level_name')
                     .aggregation('terms', 'subject_tags')
@@ -277,7 +266,6 @@
             };
             
             var retrieve_page = function() {
-                
                 var doc_index = (currentPage-1)*docs_per_page;
                 // NOTE: May not want to do aggregation in this call if it's slower
                 // since we're not replacing facet lists for this page retrieval
