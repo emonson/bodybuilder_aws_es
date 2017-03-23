@@ -7,6 +7,7 @@
     
  -->
     <head>
+        <title>AWS ES Fashion IP</title>
         <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
         <style>
             .label { color: #333; }
@@ -16,13 +17,15 @@
             .highlights em { font-weight: bold; }
             .facet_list { cursor: pointer; }
             .facet_list ul { list-style-type: none; padding-left: 1em; }
+            .returned_report { font-size: 11; color: #999; margin-top: -10; margin-left: 0.3em; }
+            .page_count { color: #999; }
         </style>
     </head>
     <body>
         <div class="container">
 
             <div class="page-header">
-                <p class="lead">Trying out faceted search in AWS Elasticsearch with Fashion IP data.</p>
+                <p class="lead">Faceted search in AWS Elasticsearch with Fashion IP data</p>
                 <!-- Search box form -->
                 <div class="row">
                     <div class="col-lg-6">
@@ -34,6 +37,7 @@
                             </span>
                         </div>
                         </form>
+                        <p class="returned_report">Items returned: <span id="num_returned_value">0</span></p>
                     </div>
                 </div>
                 <!-- Applied facets list -->
@@ -49,12 +53,21 @@
                     <div class="facet_list" id="facet_subject_tags"></div>
                     <h4>Court</h4>
                     <div class="facet_list" id="facet_courts"></div>
-                    <h4>Category</h4>
+                    <h4>IP Type</h4>
                     <div class="facet_list" id="facet_tags"></div>
                 </div>
-                <!-- Results -->
+                <!-- Body column -->
                 <div class="col-md-9">
+                    <!-- Results -->
                     <div id="results_body"></div>
+                    <!-- Navigation -->
+                    <nav aria-label="Page navigation">
+                        <ul class="pager">
+                            <li class="previous disabled"><a href="#" aria-label="Previous"><span aria-hidden="true">Previous</span></a></li>
+                            <li class="page_count">Page 0 of 0</li>
+                            <li class="next disabled"><a href="#" aria-label="Next"><span aria-hidden="true">Next</span></a></li>
+                        </ul>
+                    </nav>
                 </div>
 
             </div>
@@ -122,12 +135,6 @@
                 log: 'trace'
             });
             
-            // Search input callback setup
-            $( "#search_box_form" ).submit(function( event ) {
-                fulltext_search();
-                event.preventDefault();
-            });
-            
             // Compile templates
             var source = $("#body_template").html();
             var template_body = Handlebars.compile(source);
@@ -136,11 +143,49 @@
             source = $("#applied_facets_template").html();
             var template_applied_facets = Handlebars.compile(source);
             
-            // Initialize query variables
+            // Fields to exclude from returned search results
             var exclude_fields = ['content', 'subjects', 'filename', 'referenced', 
                                     'media_type', 'file_ref'];
             var query_string = '*';
             var query_facets_list = [];
+            var docs_per_page = 10;
+            var num_docs = 0;
+            var hits, aggs;
+            var es_body;
+            var currentPage = 1;
+            var totalPages = 1;
+    
+            // Search input callback setup
+            $( "#search_box_form" ).submit(function( event ) {
+                // Clear all facets
+                query_facets_list = [];
+                fulltext_search();
+                event.preventDefault();
+            });
+            
+            var populate_results_body = function() {
+                var html_results_body = template_body(hits);
+                $("#results_body").html(html_results_body);   
+                $(".page_count").text("Page " + currentPage + " of " + totalPages);    
+            };
+            
+            var populate_facet_lists = function() {
+                aggs.agg_terms_subject_tags.facet_name = "subject_tags";
+                var html_facet_subject_tags = template_facet(aggs.agg_terms_subject_tags);
+                $("#facet_subject_tags").html(html_facet_subject_tags);
+        
+                aggs.agg_terms_court_level_name.facet_name = "court_level_name";
+                var html_facet_courts = template_facet(aggs.agg_terms_court_level_name);
+                $("#facet_courts").html(html_facet_courts);
+        
+                aggs.agg_terms_tags.facet_name = "tags";
+                var html_facet_tags = template_facet(aggs.agg_terms_tags);
+                $("#facet_tags").html(html_facet_tags);              
+
+                var html_applied_facets = template_applied_facets({'applied':query_facets_list});
+                console.log(html_applied_facets);
+                $("#facets_applied").html(html_applied_facets);
+            };
             
             // Main search function
             var fulltext_search = function() {
@@ -149,9 +194,15 @@
                 query_string = $("#search_box").val();
                 
                 // Base default query
-                var es_body = bodybuilder()
+                es_body = {};
+                es_body = bodybuilder()
                     .rawOption('_source', { 'excludes': exclude_fields })
+<<<<<<< HEAD
                     .size(20)
+=======
+                    .size(docs_per_page)
+                    .from(0)
+>>>>>>> pagination
                     .query('query_string', {'default_field':'content', 'query':query_string})
                     .aggregation('terms', 'court_level_name')
                     .aggregation('terms', 'subject_tags')
@@ -169,28 +220,16 @@
                     type: 'case',
                     body: es_body.build()
                 }).then(function (body) {
-                    var hits = body.hits;
-                    var aggs = body.aggregations;
+                    hits = body.hits;
+                    aggs = body.aggregations;
+                    num_docs = hits.total;
+                    totalPages = 
+                    $("#num_returned_value").text(num_docs);
                 
-                // Do something with search results!
-                var html_results_body = template_body(hits);
-                $("#results_body").html(html_results_body);
-        
-                aggs.agg_terms_subject_tags.facet_name = "subject_tags";
-                var html_facet_subject_tags = template_facet(aggs.agg_terms_subject_tags);
-                $("#facet_subject_tags").html(html_facet_subject_tags);
-        
-                aggs.agg_terms_court_level_name.facet_name = "court_level_name";
-                var html_facet_courts = template_facet(aggs.agg_terms_court_level_name);
-                $("#facet_courts").html(html_facet_courts);
-        
-                aggs.agg_terms_tags.facet_name = "tags";
-                var html_facet_tags = template_facet(aggs.agg_terms_tags);
-                $("#facet_tags").html(html_facet_tags);
-                
-                var html_applied_facets = template_applied_facets({'applied':query_facets_list});
-                console.log(html_applied_facets);
-                $("#facets_applied").html(html_applied_facets);
+                    // Do something with search results!
+                    initialize_paging();
+                    populate_results_body();
+                    populate_facet_lists();
                 
                 }, function (error) {
                     console.trace(error.message);
@@ -212,6 +251,49 @@
                 fulltext_search();
             }; 
             
+            var initialize_paging = function() {
+                currentPage = 1;
+                totalPages = Math.ceil(num_docs / docs_per_page);
+                $('.previous.disabled').removeClass('disabled');
+                $('.next.disabled').removeClass('disabled');
+                $('.previous').addClass('disabled');
+                if(totalPages == 1) $('.next').addClass('disabled');
+
+                $(".pager li.previous").click(function() {
+                    if($(this).is('.disabled')) return;
+                    $('.next.disabled').removeClass('disabled');
+                    currentPage = currentPage-1;
+                    if(currentPage == 1) $(".previous").addClass('disabled');
+                    retrieve_page();
+                });
+
+                $(".pager li.next").click(function() {
+                    if($(this).is('.disabled')) return;
+                    $('.previous.disabled').removeClass('disabled');
+                    currentPage = currentPage + 1;
+                    if(currentPage == totalPages) $(".next").addClass('disabled');
+                    retrieve_page();
+                });
+            };
+            
+            var retrieve_page = function() {
+                
+                var doc_index = (currentPage-1)*docs_per_page;
+                // NOTE: May not want to do aggregation in this call if it's slower
+                // since we're not replacing facet lists for this page retrieval
+                es_body.from(doc_index);
+
+                client.search({
+                    index: 'fashion_test',
+                    type: 'case',
+                    body: es_body.build()
+                }).then(function (body) {
+                    hits = body.hits;
+                    populate_results_body();
+                }, function (error) {
+                    console.trace(error.message);
+                });
+            };
         </script>
     </body>
 </html>
